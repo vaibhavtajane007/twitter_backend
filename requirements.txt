@@ -7,3 +7,4 @@ joblib==1.5.2
 python-dotenv==1.2.1
 transformers==4.57.1
 torch==2.9.1
+sentence-transformers      # 👈 ADD THIS
