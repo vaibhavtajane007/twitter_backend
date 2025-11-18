@@ -1,10 +1,11 @@
-fastapi==0.121.2
-uvicorn[standard]
-pandas==2.3.3
-numpy==2.3.5
-xgboost==3.1.1
-joblib==1.5.2
-python-dotenv==1.2.1
-transformers==4.57.1
-torch==2.9.1
-sentence-transformers      # 👈 ADD THIS
+fastapi
+uvicorn
+numpy
+pandas
+scikit-learn
+xgboost
+sentence-transformers==2.2.2
+torch==2.0.1
+transformers
+python-dotenv
+joblib

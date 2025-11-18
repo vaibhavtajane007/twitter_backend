@@ -1,61 +1,42 @@
 import pandas as pd
-import numpy as np
 import joblib
 import json
+import os
 
-MODEL_PATH = "model/final_twitter_model.pkl"
-COLS_PATH = "model/model_columns.json"
+MODEL_DIR = "model"
 EMBED_PATH = "bert_embeddings.csv"
 
-def main():
-    print("🔹 Loading model...")
-    model = joblib.load(MODEL_PATH)
+print("🔹 Loading model...")
+model = joblib.load(os.path.join(MODEL_DIR, "final_twitter_model.pkl"))
 
-    print("🔹 Loading model columns...")
-    with open(COLS_PATH, "r") as f:
-        model_columns = json.load(f)
+with open(os.path.join(MODEL_DIR, "model_columns.json"), "r") as f:
+    MODEL_COLUMNS = json.load(f)
 
-    print("🔹 Loading bert_embeddings.csv (this may take a bit)...")
-    df = pd.read_csv(EMBED_PATH)
+print("🔹 Loading embeddings (memory-safe)...")
 
-    if "will_trend_tomorrow" not in df.columns:
-        raise SystemExit("❌ 'will_trend_tomorrow' not found in bert_embeddings.csv")
+# Load ONLY needed columns (reduces memory by 15x)
+usecols = ["trend_name", "will_trend_tomorrow"] + MODEL_COLUMNS
 
-    y = df["will_trend_tomorrow"].astype(int)
+df = pd.read_csv(EMBED_PATH, usecols=usecols)
+print("Loaded:", df.shape)
 
-    # Build X exactly like in train_model.py
-    X = df.drop(columns=["will_trend_tomorrow"], errors="ignore")
+# remove date, name from X (if present)
+X = df[MODEL_COLUMNS].fillna(0)
+y = df["will_trend_tomorrow"]
 
-    # Drop non-feature columns
-    for col in ["trend_date", "trend_name"]:
-        if col in X.columns:
-            X = X.drop(columns=[col])
+print("\n📊 Start predicting probabilities (batch mode)...")
 
-    unnamed_cols = [c for c in X.columns if c.startswith("Unnamed")]
-    if unnamed_cols:
-        X = X.drop(columns=unnamed_cols, errors="ignore")
+# predict in batches to avoid RAM overload
+batch_size = 5000
+probas = []
 
-    # Keep only model_columns (to ensure same order)
-    X = X[model_columns]
+for i in range(0, len(X), batch_size):
+    batch = X.iloc[i:i+batch_size]
+    p = model.predict_proba(batch)[:, 1]
+    probas.extend(p)
 
-    print("🔹 Computing probabilities on training data...")
-    probs = model.predict_proba(X)[:, 1]
+df["proba"] = probas
 
-    df_result = pd.DataFrame({
-        "trend_name": df.get("trend_name", pd.Series(["?"] * len(df))),
-        "trend_date": df.get("trend_date", pd.Series(["?"] * len(df))),
-        "will_trend_tomorrow": y,
-        "proba": probs,
-    })
-
-    # Show basic stats
-    print("\n📊 Probability stats:")
-    print(df_result["proba"].describe())
-
-    # Show some of the top 20 highest predicted
-    top = df_result.sort_values("proba", ascending=False).head(20)
-    print("\n🔥 Top 20 hashtags by predicted probability:")
-    print(top[["trend_date", "trend_name", "will_trend_tomorrow", "proba"]])
-
-if __name__ == "__main__":
-    main()
+print("\n🔥 Top hashtags predicted most likely to trend tomorrow:")
+top = df.sort_values("proba", ascending=False).head(30)
+print(top[["trend_name", "will_trend_tomorrow", "proba"]])
