@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X Clone - Trend Predictor</title>
+    <!-- Load Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CSS Variables and Global Reset --- */
+        :root {
+            --color-black: #000000;
+            --color-dark-gray: #16181C; /* Secondary background/hover color, closer to X */
+            --color-border: #2F3336;
+            --color-primary-blue: #1D9BF0;
+            --color-text-main: #E7E9EA;
+            --color-text-secondary: #71767B;
+            --color-red-error: #F4212E;
+            --color-ad-green: #00BA7C;
+            --color-trend-high: #4ade80; /* Green for high probability */
+            --color-trend-low: #f87171;  /* Red for low probability */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--color-black);
+            color: var(--color-text-main);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* --- Main Layout --- */
+        .app-container {
+            display: flex;
+            justify-content: center;
+            width: 100%;
+            min-height: 100vh;
+        }
+
+        .content-wrapper {
+            display: flex;
+            width: 100%;
+            max-width: 1400px;
+        }
+
+        /* --- Main Feed Column --- */
+        .main-content {
+            flex-grow: 1;
+            max-width: 600px;
+            min-height: 100vh;
+            border-left: 1px solid var(--color-border);
+            border-right: 1px solid var(--color-border);
+            position: relative;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            /* Sticky Header Style */
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--color-border);
+        }
+        .header-title {
+             padding: 1rem;
+             font-size: 1.25rem; 
+             font-weight: bold;
+        }
+
+        /* --- Tabs Bar (For you / Following) --- */
+        .tabs-bar {
+            display: flex;
+            justify-content: space-around;
+            border-bottom: 1px solid var(--color-border);
+            position: sticky;
+            top: 60px; /* Below the main header */
+            z-index: 9;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(12px);
+        }
+        .tab-item {
+            padding: 1rem 0;
+            font-weight: 600;
+            cursor: pointer;
+            border-bottom: 4px solid transparent;
+            color: var(--color-text-secondary);
+            transition: color 0.2s;
+            width: 50%;
+            text-align: center;
+        }
+        .tab-item:hover {
+            background-color: var(--color-dark-gray);
+        }
+        .tab-item.active {
+            color: var(--color-text-main);
+            border-bottom: 4px solid var(--color-primary-blue);
+        }
+
+        /* --- Sidebars --- */
+        .sidebar-left, .sidebar-right {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            flex-shrink: 0;
+        }
+
+        .sidebar-left {
+            width: 275px; 
+            padding: 0 1rem;
+        }
+
+        .sidebar-right {
+            width: 350px;
+            padding: 0 1rem;
+            padding-top: 0.5rem;
+        }
+        
+        /* Hidden by default, shown via media queries */
+        .hidden-lg, .hidden-xl {
+            display: none;
+        }
+
+        /* --- Sidebar Navigation Styles --- */
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem;
+            border-radius: 9999px; 
+            font-size: 1.25rem;
+            font-weight: 600;
+            text-decoration: none;
+            color: var(--color-text-main);
+            transition: background-color 0.2s;
+            margin-bottom: 0.1rem;
+        }
+        .nav-link.active-bold {
+            font-weight: 700;
+        }
+        .nav-link:hover {
+            background-color: var(--color-dark-gray);
+        }
+        .nav-icon {
+            height: 1.75rem;
+            width: 1.75rem;
+            margin-right: 1.25rem;
+        }
+        .post-btn-sidebar {
+            width: 90%;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background-color: var(--color-primary-blue);
+            color: white;
+            border-radius: 9999px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .post-btn-sidebar:hover {
+             background-color: #1a8cd8;
+        }
+
+        /* --- Bottom Profile Box --- */
+        .bottom-profile {
+            position: absolute;
+            bottom: 1rem;
+            width: 90%;
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .bottom-profile:hover {
+            background-color: var(--color-dark-gray);
+        }
+        .bottom-profile-avatar {
+             height: 40px;
+             width: 40px;
+             background-color: var(--color-text-secondary);
+             border-radius: 50%;
+             margin-right: 0.5rem;
+             flex-shrink: 0;
+        }
+        .bottom-profile-info p {
+             margin: 0;
+             font-size: 0.875rem;
+        }
+        .bottom-profile-info .username {
+             color: var(--color-text-secondary);
+        }
+        .bottom-profile-more {
+            margin-left: auto;
+            color: var(--color-text-secondary);
+        }
+
+        /* --- Right Sidebar Sections (Trends, Live, Premium) --- */
+        .right-box {
+            background-color: var(--color-dark-gray);
+            border-radius: 1rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        .right-box h2 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-bottom: 1rem;
+            margin-top: 0;
+        }
+        .right-box-btn {
+            background-color: var(--color-primary-blue);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            text-align: center;
+            border: none;
+            cursor: pointer;
+            margin-top: 1rem;
+            width: 100%;
+        }
+        .news-item {
+            border-top: 1px solid var(--color-border);
+            padding-top: 0.75rem;
+            cursor: pointer;
+        }
+        .news-item:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+            margin: -1rem;
+            padding: 1rem;
+        }
+        .news-item .source {
+            font-size: 0.75rem;
+            color: var(--color-text-secondary);
+        }
+        .news-item .title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-top: 0.1rem;
+            line-height: 1.3;
+        }
+        
+        /* --- Tweet Composer Input --- */
+        .composer-input-area {
+            padding: 1rem;
+            border-bottom: 1px solid var(--color-border);
+            cursor: pointer;
+            transition: background-color 0.1s;
+        }
+        .composer-input-area:hover {
+            background-color: var(--color-dark-gray);
+        }
+        .input-row {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .mock-avatar {
+            height: 40px;
+            width: 40px;
+            background-color: var(--color-text-secondary);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .composer-input {
+            flex-grow: 1;
+            background: transparent;
+            border: none;
+            font-size: 1.25rem;
+            color: var(--color-text-secondary);
+            outline: none;
+            margin-top: 0.5rem;
+        }
+        .show-posts-separator {
+            text-align: center;
+            padding: 1rem;
+            border-bottom: 1px solid var(--color-border);
+            color: var(--color-primary-blue);
+            font-size: 0.95rem;
+            cursor: pointer;
+        }
+        .show-posts-separator:hover {
+            background-color: var(--color-dark-gray);
+        }
+
+        /* --- Feed Item (Tweet Box) --- */
+        .tweet-box {
+            padding: 1rem;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            gap: 0.75rem;
+            transition: background-color 0.1s;
+            cursor: pointer;
+        }
+        .tweet-box:hover {
+            background-color: var(--color-dark-gray);
+        }
+        .tweet-content {
+            flex-grow: 1;
+        }
+        .tweet-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.25rem;
+        }
+        .tweet-header p {
+            margin: 0;
+            font-size: 0.875rem;
+        }
+        .tweet-header .name {
+            font-weight: bold;
+            margin-right: 0.25rem;
+        }
+        .tweet-header .handle {
+            color: var(--color-text-secondary);
+            margin-right: 0.5rem;
+        }
+        .tweet-header .handle svg {
+            fill: var(--color-primary-blue);
+            height: 1rem;
+            width: 1rem;
+            margin-left: 0.25rem;
+        }
+        .tweet-header .time {
+            color: var(--color-text-secondary);
+        }
+        .tweet-text {
+            font-size: 0.95rem;
+            line-height: 1.4;
+            margin-bottom: 0.75rem;
+        }
+        .tweet-metrics {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--color-text-secondary);
+        }
+        .metric-item {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+        .metric-item svg {
+            margin-right: 0.5rem;
+            height: 1.2rem;
+            width: 1.2rem;
+            stroke: var(--color-text-secondary);
+            fill: none;
+        }
+
+        /* --- Floating Action Button (FAB) (For smaller screens) --- */
+        .fab {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background-color: var(--color-primary-blue);
+            color: white;
+            border-radius: 9999px;
+            padding: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.5);
+            transition: transform 0.2s, background-color 0.2s;
+            border: none;
+            cursor: pointer;
+            z-index: 20;
+        }
+        .fab:hover {
+            background-color: #1a8cd8; 
+            transform: scale(1.05);
+        }
+        .fab svg {
+            height: 1.5rem;
+            width: 1.5rem;
+        }
+        
+        /* --- MODAL STYLES (Kept from previous version, as they are accurate) --- */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 50;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding-top: 32px;
+        }
+        .modal-content {
+            background-color: var(--color-black);
+            width: 100%;
+            max-width: 600px;
+            margin: 0 1rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--color-border);
+        }
+        .modal-header {
+            padding: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--color-border);
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            color: var(--color-text-main);
+            padding: 0.5rem;
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .modal-close-btn:hover {
+            color: var(--color-primary-blue);
+        }
+        .modal-body {
+            padding: 1rem;
+        }
+        #tweetTextarea {
+            width: 100%;
+            min-height: 150px;
+            background: transparent;
+            border: none;
+            font-size: 1.25rem;
+            color: var(--color-text-main);
+            outline: none;
+            resize: none;
+            padding: 0;
+        }
+        .char-count {
+            font-size: 0.875rem;
+            color: var(--color-text-secondary);
+            text-align: right;
+        }
+        .modal-footer {
+            padding: 1rem;
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .action-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .predict-result {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background-color: #1a1a1a;
+            border: 1px solid #363636;
+        }
+        .predict-result p {
+            font-size: 1rem;
+            font-weight: 600;
+            margin: 0;
+        }
+        .btn {
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            border: none;
+            cursor: pointer;
+            transition: opacity 0.2s, background-color 0.2s;
+        }
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .btn-predict {
+            background-color: #555;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn-predict:not(:disabled):hover {
+            background-color: #444;
+        }
+        .btn-tweet {
+            background-color: var(--color-primary-blue);
+            color: white;
+        }
+        .btn-tweet:not(:disabled):hover {
+            background-color: #1a8cd8;
+        }
+        .status-message {
+            font-size: 0.875rem;
+            color: var(--color-red-error);
+        }
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-left-color: var(--color-primary-blue);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-left: 0.5rem;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* --- Media Queries for Responsiveness --- */
+
+        /* Large screens (lg: 1024px and up) */
+        @media screen and (min-width: 1024px) {
+            .sidebar-left {
+                display: flex;
+                flex-direction: column;
+            }
+            .hidden-lg {
+                display: flex; /* Show the left sidebar */
+            }
+            .fab {
+                display: none; /* Hide FAB when sidebar is present */
+            }
+        }
+
+        /* Extra Large screens (xl: 1280px and up) */
+        @media screen and (min-width: 1280px) {
+            .content-wrapper {
+                justify-content: center;
+            }
+            .sidebar-right {
+                display: block; /* Show the right sidebar */
+            }
+            .hidden-xl {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Main Application Container -->
+    <div class="app-container">
+        <div class="content-wrapper">
+
+            <!-- Left Sidebar/Navigation (Hidden below 1024px) -->
+            <aside class="sidebar-left hidden-lg">
+                <div style="padding: 1rem 0; margin-top: 0.5rem;">
+                    <!-- X Logo SVG -->
+                    <svg viewBox="0 0 24 24" aria-hidden="true" style="height: 32px; width: 32px; fill: white;"><g><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.814L4.99 21.75H1.68l7.23-8.26L2.54 2.25H8.08l4.713 6.23L18.244 2.25zM17.442 19.897h2.155L6.22 4.062H4.065l13.377 15.835z"></path></g></svg>
+                </div>
+                <nav style="display: flex; flex-direction: column; margin-top: 0.5rem;">
+                    <!-- 1. Home -->
+                    <a href="#" class="nav-link active-bold">
+                        <svg class="nav-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2L4 9v11c0 1.1.9 2 2 2h3v-7h6v7h3c1.1 0 2-.9 2-2V9l-8-7z"></path></svg>
+                        Home
+                    </a>
+                    <!-- 2. Explore -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        Explore
+                    </a>
+                    <!-- 3. Notifications -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v2a3 3 0 11-6 0v-2m6 0H9"></path></svg>
+                        Notifications
+                    </a>
+                    <!-- 4. Messages -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.933 8-11 8s-11-3.582-11-8 4.933-8 11-8 11 3.582 11 8z"></path></svg>
+                        Messages
+                    </a>
+                    <!-- 5. Grok -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"></path></svg>
+                        Grok
+                    </a>
+                    <!-- 6. Bookmarks -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path></svg>
+                        Bookmarks
+                    </a>
+                    <!-- 7. Communities -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h-4a2 2 0 01-2-2v-2a2 2 0 00-2-2H7a2 2 0 00-2 2v2a2 2 0 01-2 2H1m15 0h-4a2 2 0 01-2-2v-2a2 2 0 00-2-2H7a2 2 0 00-2 2v2a2 2 0 01-2 2H1m15 0a2 2 0 002-2v-2a2 2 0 00-2-2h-4a2 2 0 00-2 2v2a2 2 0 002 2h4zM12 7a4 4 0 100-8 4 4 0 000 8z"></path></svg>
+                        Communities
+                    </a>
+                     <!-- 8. Premium -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15.5h-1V12h2.5c1.38 0 2.5-1.12 2.5-2.5S14.88 7 13.5 7h-4V5.5h-1V7h-1.5c-1.38 0-2.5 1.12-2.5 2.5S7.12 12 8.5 12h1V17.5z"></path></svg>
+                        Premium
+                    </a>
+                    <!-- 9. Profile -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14c-4.418 0-8 2.239-8 5v2h16v-2c0-2.761-3.582-5-8-5z"></path></svg>
+                        Profile
+                    </a>
+                     <!-- 10. More -->
+                    <a href="#" class="nav-link">
+                        <svg class="nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                        More
+                    </a>
+                </nav>
+
+                <!-- Sidebar Post Button -->
+                <button onclick="openModal()" class="post-btn-sidebar">
+                    Post
+                </button>
+                
+                <!-- Bottom Profile Box -->
+                <div class="bottom-profile">
+                    <div class="bottom-profile-avatar" style="background-color: #555;"></div>
+                    <div class="bottom-profile-info">
+                        <p class="name">Govind</p>
+                        <p class="username">@Govind_718</p>
+                    </div>
+                    <div class="bottom-profile-more">
+                        <svg style="height: 1.2rem; width: 1.2rem;" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"></path></svg>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Main Content Feed -->
+            <main class="main-content">
+                <header class="header">
+                    <h1 class="header-title" style="padding: 0 1rem 0 1rem;">Home</h1>
+                    <!-- Top Sub-Navigation (For you/Following) -->
+                    <div class="tabs-bar">
+                        <div class="tab-item active">For you</div>
+                        <div class="tab-item">Following</div>
+                    </div>
+                </header>
+                
+                <!-- Input area: Clicking this opens the modal -->
+                <div class="composer-input-area" onclick="openModal()">
+                    <div class="input-row">
+                        <div class="mock-avatar"></div>
+                        <div style="flex-grow: 1;">
+                            <input type="text" placeholder="What is happening?!" class="composer-input">
+                            <!-- Placeholder icons -->
+                            <div style="display: flex; gap: 1rem; margin-top: 1rem; color: var(--color-primary-blue);">
+                                <svg style="height: 1.2rem; width: 1.2rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-12 1h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                <svg style="height: 1.2rem; width: 1.2rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0h6"></path></svg>
+                                <svg style="height: 1.2rem; width: 1.2rem;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.55 4.55a2 2 0 010 2.83l-4.55 4.55-4.55-4.55a2 2 0 010-2.83L15 10zM12 8a2 2 0 100-4 2 2 0 000 4z"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Show Posts Separator -->
+                <div class="show-posts-separator">Show 25 posts</div>
+
+                <!-- Live Feed Container (New tweets prepend here) -->
+                <div id="tweet-feed-container">
+                    <!-- 1. Dummy Tweet: Hitesh Choudhary (Tech Downtime) -->
+
+                    <!-- 2. Dummy Tweet: Finance/Crypto News -->
+                    <div class="tweet-box">
+                        <div class="mock-avatar" style="background-color: #f59e0b;"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-header">
+                                <p class="name">Coin Analyst</p>
+                                <p class="handle">@CryptoDaily</p>
+                                <p class="handle time">· 40m</p>
+                            </div>
+                            <p class="tweet-text">The market correction was brutal, but holding long-term conviction is key. Are we seeing the bottom or just a temporary pause before the next drop? $BTC $ETH #Finance</p>
+                            <div class="tweet-metrics">
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M7 9C5.895 9 5 8.105 5 7C5 5.895 5.895 5 7 5C8.105 5 9 5.895 9 7C9 8.105 8.105 9 7 9Z"></path><path d="M19 14H15C14.72 14 14.5 13.78 14.5 13.5V10.5C14.5 10.22 14.72 10 15 10H19C19.28 10 19.5 10.22 19.5 10.5V13.5C19.5 13.78 19.28 14 19 14Z"></path><path d="M15.5 19H12.5C12.22 19 12 18.78 12 18.5V15.5C12 15.22 12.22 15 12.5 15H15.5C15.78 15 16 15.22 16 15.5V18.5C16 18.78 15.78 19 15.5 19Z"></path></g></svg>319</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M22.094 13.06l-4.22-3.037L17.5 9.773c-.156.096-.34.156-.5.156-.39 0-.75-.25-.94-.6l-1.04-1.954c-.19-.35-.55-.6-.94-.6-.16 0-.33.058-.47.147l-4.14 2.87-2.67-2.735c-.174-.176-.41-.275-.66-.275h-.35c-.46 0-.87.275-1.06.68L4.85 11.23c.3.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L1.7 8.78c.3-.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02L0.35 2.21c-.19-.4-.6-.68-1.06-.68h-.35c-.25 0-.49.1-.66.275l-2.67 2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L-22.094 13.06c.3-.57 1.05 1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037L-46.188 13.06c.3-.57 1.05-1.77 1.05-3.02 0-1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49.1-.66.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037z"></path></g></svg>1.5K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 21.638l-.723-.625C4.945 14.288 3.5 13.033 3.5 10.138c0-3.66 2.546-5.85 5.223-5.85 2.12 0 3.87 1.274 4.777 3.59.907-2.316 2.657-3.59 4.777-3.59 2.677 0 5.223 2.19 5.223 5.85 0 2.895-1.445 4.15-7.777 10.875l-.723.625z"></path></g></svg>7.2K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 17.5c-4.265 0-7.75-3.485-7.75-7.75s3.485-7.75 7.75-7.75 7.75 3.485 7.75 7.75-3.485 7.75-7.75 7.75zm1.5-6.5h-3v-3h3v3zM12 8.5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path></g></svg>980</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 18.25c-4.706 0-8.5-3.794-8.5-8.5S7.294 3.5 12 3.5s8.5 3.794 8.5 8.5-3.794 8.5-8.5 8.5zM12 7.75c-2.345 0-4.25 1.905-4.25 4.25s1.905 4.25 4.25 4.25 4.25-1.905 4.25-4.25-1.905-4.25-4.25-4.25z"></path></g></svg></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3. Dummy Tweet: Science/Space Topic -->
+                    <div class="tweet-box">
+                        <div class="mock-avatar" style="background-color: #10b981;"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-header">
+                                <p class="name">Astro News</p>
+                                <p class="handle">@Space_Updates</p>
+                                <p class="handle time">· 2h</p>
+                            </div>
+                            <p class="tweet-text">The new images from the James Webb telescope are absolutely stunning. The detail in the Carina Nebula confirms several stellar formation theories. A truly historic moment for astronomy. 🌌 #JWST #Space</p>
+                            <div class="tweet-metrics">
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M7 9C5.895 9 5 8.105 5 7C5 5.895 5.895 5 7 5C8.105 5 9 5.895 9 7C9 8.105 8.105 9 7 9Z"></path><path d="M19 14H15C14.72 14 14.5 13.78 14.5 13.5V10.5C14.5 10.22 14.72 10 15 10H19C19.28 10 19.5 10.22 19.5 10.5V13.5C19.5 13.78 19.28 14 19 14Z"></path><path d="M15.5 19H12.5C12.22 19 12 18.78 12 18.5V15.5C12 15.22 12.22 15 12.5 15H15.5C15.78 15 16 15.22 16 15.5V18.5C16 18.78 15.78 19 15.5 19Z"></path></g></svg>42</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M22.094 13.06l-4.22-3.037L17.5 9.773c-.156.096-.34.156-.5.156-.39 0-.75-.25-.94-.6l-1.04-1.954c-.19-.35-.55-.6-.94-.6-.16 0-.33.058-.47.147l-4.14 2.87-2.67-2.735c-.174-.176-.41-.275-.66-.275h-.35c-.46 0-.87.275-1.06.68L4.85 11.23c.3.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L1.7 8.78c.3-.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02L0.35 2.21c-.19-.4-.6-.68-1.06-.68h-.35c-.25 0-.49.1-.66.275l-2.67 2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L-22.094 13.06c.3-.57 1.05 1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037L-46.188 13.06c.3-.57 1.05-1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49.1-.66.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037z"></path></g></svg>98</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 21.638l-.723-.625C4.945 14.288 3.5 13.033 3.5 10.138c0-3.66 2.546-5.85 5.223-5.85 2.12 0 3.87 1.274 4.777 3.59.907-2.316 2.657-3.59 4.777-3.59 2.677 0 5.223 2.19 5.223 5.85 0 2.895-1.445 4.15-7.777 10.875l-.723.625z"></path></g></svg>12.5K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 17.5c-4.265 0-7.75-3.485-7.75-7.75s3.485-7.75 7.75-7.75 7.75 3.485 7.75 7.75-3.485 7.75-7.75 7.75zm1.5-6.5h-3v-3h3v3zM12 8.5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path></g></svg>2.1K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 18.25c-4.706 0-8.5-3.794-8.5-8.5S7.294 3.5 12 3.5s8.5 3.794 8.5 8.5-3.794 8.5-8.5 8.5zM12 7.75c-2.345 0-4.25 1.905-4.25 4.25s1.905 4.25 4.25 4.25 4.25-1.905 4.25-4.25-1.905-4.25-4.25-4.25z"></path></g></svg></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. Dummy Tweet: General Opinion -->
+                    <div class="tweet-box">
+                        <div class="mock-avatar" style="background-color: #ef4444;"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-header">
+                                <p class="name">Opinion Hub</p>
+                                <p class="handle">@DailyThought</p>
+                                <p class="handle time">· 6h</p>
+                            </div>
+                            <p class="tweet-text">Unpopular opinion: The best productivity hack is actually just taking a longer break. Burnout is real, and the quality of focused work always beats sheer volume. Agree or disagree? #Productivity</p>
+                            <div class="tweet-metrics">
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M7 9C5.895 9 5 8.105 5 7C5 5.895 5.895 5 7 5C8.105 5 9 5.895 9 7C9 8.105 8.105 9 7 9Z"></path><path d="M19 14H15C14.72 14 14.5 13.78 14.5 13.5V10.5C14.5 10.22 14.72 10 15 10H19C19.28 10 19.5 10.22 19.5 10.5V13.5C19.5 13.78 19.28 14 19 14Z"></path><path d="M15.5 19H12.5C12.22 19 12 18.78 12 18.5V15.5C12 15.22 12.22 15 12.5 15H15.5C15.78 15 16 15.22 16 15.5V18.5C16 18.78 15.78 19 15.5 19Z"></path></g></svg>780</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M22.094 13.06l-4.22-3.037L17.5 9.773c-.156.096-.34.156-.5.156-.39 0-.75-.25-.94-.6l-1.04-1.954c-.19-.35-.55-.6-.94-.6-.16 0-.33.058-.47.147l-4.14 2.87-2.67-2.735c-.174-.176-.41-.275-.66-.275h-.35c-.46 0-.87.275-1.06.68L4.85 11.23c.3.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L1.7 8.78c.3-.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02L0.35 2.21c-.19-.4-.6-.68-1.06-.68h-.35c-.25 0-.49.1-.66.275l-2.67 2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L-22.094 13.06c.3-.57 1.05 1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037L-46.188 13.06c.3-.57 1.05-1.77 1.05-3.02 0-1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49.1-.66.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037z"></path></g></svg>3.4K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 21.638l-.723-.625C4.945 14.288 3.5 13.033 3.5 10.138c0-3.66 2.546-5.85 5.223-5.85 2.12 0 3.87 1.274 4.777 3.59.907-2.316 2.657-3.59 4.777-3.59 2.677 0 5.223 2.19 5.223 5.85 0 2.895-1.445 4.15-7.777 10.875l-.723.625z"></path></g></svg>1.2K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 17.5c-4.265 0-7.75-3.485-7.75-7.75s3.485-7.75 7.75-7.75 7.75 3.485 7.75 7.75-3.485 7.75-7.75 7.75zm1.5-6.5h-3v-3h3v3zM12 8.5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path></g></svg>670</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 18.25c-4.706 0-8.5-3.794-8.5-8.5S7.294 3.5 12 3.5s8.5 3.794 8.5 8.5-3.794 8.5-8.5 8.5zM12 7.75c-2.345 0-4.25 1.905-4.25 4.25s1.905 4.25 4.25 4.25 4.25-1.905 4.25-4.25-1.905-4.25-4.25-4.25z"></path></g></svg></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Dummy Tweet: Sports News -->
+                    <div class="tweet-box">
+                        <div class="mock-avatar" style="background-color: #0d9488;"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-header">
+                                <p class="name">Sports Blitz</p>
+                                <p class="handle">@TheFinalQuarter</p>
+                                <p class="handle time">· 11m</p>
+                            </div>
+                            <p class="tweet-text">Unbelievable game last night! That last-second three-pointer sealed the deal. Who was your MVP, and does this change your championship predictions for the league?</p>
+                            <div class="tweet-metrics">
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M7 9C5.895 9 5 8.105 5 7C5 5.895 5.895 5 7 5C8.105 5 9 5.895 9 7C9 8.105 8.105 9 7 9Z"></path><path d="M19 14H15C14.72 14 14.5 13.78 14.5 13.5V10.5C14.5 10.22 14.72 10 15 10H19C19.28 10 19.5 10.22 19.5 10.5V13.5C19.5 13.78 19.28 14 19 14Z"></path><path d="M15.5 19H12.5C12.22 19 12 18.78 12 18.5V15.5C12 15.22 12.22 15 12.5 15H15.5C15.78 15 16 15.22 16 15.5V18.5C16 18.78 15.78 19 15.5 19Z"></path></g></svg>56</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M22.094 13.06l-4.22-3.037L17.5 9.773c-.156.096-.34.156-.5.156-.39 0-.75-.25-.94-.6l-1.04-1.954c-.19-.35-.55-.6-.94-.6-.16 0-.33.058-.47.147l-4.14 2.87-2.67-2.735c-.174-.176-.41-.275-.66-.275h-.35c-.46 0-.87.275-1.06.68L4.85 11.23c.3.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L1.7 8.78c.3-.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02L0.35 2.21c-.19-.4-.6-.68-1.06-.68h-.35c-.25 0-.49.1-.66.275l-2.67 2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L-22.094 13.06c.3-.57 1.05 1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037L-46.188 13.06c.3-.57 1.05-1.77 1.05-3.02 0-1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49.1-.66.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037z"></path></g></svg>1.8K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 21.638l-.723-.625C4.945 14.288 3.5 13.033 3.5 10.138c0-3.66 2.546-5.85 5.223-5.85 2.12 0 3.87 1.274 4.777 3.59.907-2.316 2.657-3.59 4.777-3.59 2.677 0 5.223 2.19 5.223 5.85 0 2.895-1.445 4.15-7.777 10.875l-.723.625z"></path></g></svg>45.2K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 17.5c-4.265 0-7.75-3.485-7.75-7.75s3.485-7.75 7.75-7.75 7.75 3.485 7.75 7.75-3.485 7.75-7.75 7.75zm1.5-6.5h-3v-3h3v3zM12 8.5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path></g></svg>10.1K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 18.25c-4.706 0-8.5-3.794-8.5-8.5S7.294 3.5 12 3.5s8.5 3.794 8.5 8.5-3.794 8.5-8.5 8.5zM12 7.75c-2.345 0-4.25 1.905-4.25 4.25s1.905 4.25 4.25 4.25 4.25-1.905 4.25-4.25-1.905-4.25-4.25-4.25z"></path></g></svg></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 5. Dummy Tweet: Sports News -->
+                    <div class="tweet-box">
+                        <div class="mock-avatar" style="background-color: #0d9488;"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-header">
+                                <p class="name">Sports Blitz</p>
+                                <p class="handle">@TheFinalQuarter</p>
+                                <p class="handle time">· 11m</p>
+                            </div>
+                            <p class="tweet-text">Unbelievable game last night! That last-second three-pointer sealed the deal. Who was your MVP, and does this change your championship predictions for the league?</p>
+                            <div class="tweet-metrics">
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M7 9C5.895 9 5 8.105 5 7C5 5.895 5.895 5 7 5C8.105 5 9 5.895 9 7C9 8.105 8.105 9 7 9Z"></path><path d="M19 14H15C14.72 14 14.5 13.78 14.5 13.5V10.5C14.5 10.22 14.72 10 15 10H19C19.28 10 19.5 10.22 19.5 10.5V13.5C19.5 13.78 19.28 14 19 14Z"></path><path d="M15.5 19H12.5C12.22 19 12 18.78 12 18.5V15.5C12 15.22 12.22 15 12.5 15H15.5C15.78 15 16 15.22 16 15.5V18.5C16 18.78 15.78 19 15.5 19Z"></path></g></svg>56</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M22.094 13.06l-4.22-3.037L17.5 9.773c-.156.096-.34.156-.5.156-.39 0-.75-.25-.94-.6l-1.04-1.954c-.19-.35-.55-.6-.94-.6-.16 0-.33.058-.47.147l-4.14 2.87-2.67-2.735c-.174-.176-.41-.275-.66-.275h-.35c-.46 0-.87.275-1.06.68L4.85 11.23c.3.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L1.7 8.78c.3-.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02L0.35 2.21c-.19-.4-.6-.68-1.06-.68h-.35c-.25 0-.49.1-.66.275l-2.67 2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L-22.094 13.06c.3-.57 1.05 1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037L-46.188 13.06c.3-.57 1.05-1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49.1-.66.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037z"></path></g></svg>1.8K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 21.638l-.723-.625C4.945 14.288 3.5 13.033 3.5 10.138c0-3.66 2.546-5.85 5.223-5.85 2.12 0 3.87 1.274 4.777 3.59.907-2.316 2.657-3.59 4.777-3.59 2.677 0 5.223 2.19 5.223 5.85 0 2.895-1.445 4.15-7.777 10.875l-.723.625z"></path></g></svg>45.2K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 17.5c-4.265 0-7.75-3.485-7.75-7.75s3.485-7.75 7.75-7.75 7.75 3.485 7.75 7.75-3.485 7.75-7.75 7.75zm1.5-6.5h-3v-3h3v3zM12 8.5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path></g></svg>10.1K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 18.25c-4.706 0-8.5-3.794-8.5-8.5S7.294 3.5 12 3.5s8.5 3.794 8.5 8.5-3.794 8.5-8.5 8.5zM12 7.75c-2.345 0-4.25 1.905-4.25 4.25s1.905 4.25 4.25 4.25 4.25-1.905 4.25-4.25-1.905-4.25-4.25-4.25z"></path></g></svg></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 6. Dummy Tweet: Random Question -->
+                    <div class="tweet-box">
+                        <div class="mock-avatar" style="background-color: #6d28d9;"></div>
+                        <div class="tweet-content">
+                            <div class="tweet-header">
+                                <p class="name">Midnight Coder</p>
+                                <p class="handle">@dev_ops</p>
+                                <p class="handle time">· 8h</p>
+                            </div>
+                            <p class="tweet-text">Does anyone else feel like the hardest bug to fix is always the one you wrote three months ago? Time travel would be a killer debugging feature. #Programming #Coding</p>
+                            <div class="tweet-metrics">
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M7 9C5.895 9 5 8.105 5 7C5 5.895 5.895 5 7 5C8.105 5 9 5.895 9 7C9 8.105 8.105 9 7 9Z"></path><path d="M19 14H15C14.72 14 14.5 13.78 14.5 13.5V10.5C14.5 10.22 14.72 10 15 10H19C19.28 10 19.5 10.22 19.5 10.5V13.5C19.5 13.78 19.28 14 19 14Z"></path><path d="M15.5 19H12.5C12.22 19 12 18.78 12 18.5V15.5C12 15.22 12.22 15 12.5 15H15.5C15.78 15 16 15.22 16 15.5V18.5C16 18.78 15.78 19 15.5 19Z"></path></g></svg>95</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M22.094 13.06l-4.22-3.037L17.5 9.773c-.156.096-.34.156-.5.156-.39 0-.75-.25-.94-.6l-1.04-1.954c-.19-.35-.55-.6-.94-.6-.16 0-.33.058-.47.147l-4.14 2.87-2.67-2.735c-.174-.176-.41-.275-.66-.275h-.35c-.46 0-.87.275-1.06.68L4.85 11.23c.3.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L1.7 8.78c.3-.57 1.05 1.77 1.05 3.02 0 1.25-.75 2.45-1.05 3.02L0.35 2.21c-.19-.4-.6-.68-1.06-.68h-.35c-.25 0-.49.1-.66.275l-2.67 2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-.37.25-4.22 3.037-1.5-.935c-.46-.28-.68-.87-.5-1.36l1.3-3.6c.14-.38.16-.76.06-1.12-.1-.36-.33-.67-.62-.85L-22.094 13.06c.3-.57 1.05 1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49-.1-.66-.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037L-46.188 13.06c.3-.57 1.05-1.77 1.05-3.02 0 1.25-.75 2.45-1.05 3.02l-1.35 2.535c-.19.4-.6.68-1.06.68h-.35c-.25 0-.49.1-.66.275l-2.67-2.735-4.14 2.87c-.14.09-.31.147-.47.147-.39 0-.75.25-.94.6l-1.04 1.954c-.19.35-.55.6-.94.6-.16 0-.34.06-.5.156l-4.22-3.037z"></path></g></svg>320</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 21.638l-.723-.625C4.945 14.288 3.5 13.033 3.5 10.138c0-3.66 2.546-5.85 5.223-5.85 2.12 0 3.87 1.274 4.777 3.59.907-2.316 2.657-3.59 4.777-3.59 2.677 0 5.223 2.19 5.223 5.85 0 2.895-1.445 4.15-7.777 10.875l-.723.625z"></path></g></svg>5.6K</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 17.5c-4.265 0-7.75-3.485-7.75-7.75s3.485-7.75 7.75-7.75 7.75 3.485 7.75 7.75-3.485 7.75-7.75 7.75zm1.5-6.5h-3v-3h3v3zM12 8.5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path></g></svg>50</div>
+                                <div class="metric-item"><svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none; fill: currentColor;"><g><path d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm0 18.25c-4.706 0-8.5-3.794-8.5-8.5S7.294 3.5 12 3.5s8.5 3.794 8.5 8.5-3.794 8.5-8.5 8.5zM12 7.75c-2.345 0-4.25 1.905-4.25 4.25s1.905 4.25 4.25 4.25 4.25-1.905 4.25-4.25-1.905-4.25-4.25-4.25z"></path></g></svg></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- Right Sidebar/Trends (Hidden below 1280px) -->
+            <aside class="sidebar-right hidden-xl">
+                <!-- Subscribe to Premium Box -->
+                <div class="right-box" style="margin-top: 0;">
+                    <h2>Subscribe to Premium</h2>
+                    <p style="font-size: 0.95rem; line-height: 1.4; color: var(--color-text-main);">Subscribe to unlock new features and if eligible, receive a share of revenue.</p>
+                    <button class="right-box-btn" style="width: auto; padding: 0.5rem 1rem;">Subscribe</button>
+                </div>
+                
+                <!-- Live on X Box -->
+                <div class="right-box">
+                    <h2>Live on X</h2>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem;">
+                        <p style="font-size: 0.9rem; font-weight: bold; margin: 0;">Ankush Dharkar <svg viewBox="0 0 24 24" aria-hidden="true" style="fill: var(--color-primary-blue); height: 1rem; width: 1rem;"><g><path d="M12 2L4 9v11c0 1.1.9 2 2 2h3v-7h6v7h3c1.1 0 2-.9 2-2V9l-8-7z"></path></g></svg></p>
+                        <p style="font-size: 0.8rem; color: var(--color-text-secondary); margin: 0;">is hosting</p>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <div class="mock-avatar" style="background-color: #f59e0b; width: 40px; height: 40px; border: 2px solid var(--color-black);"></div>
+                        <div class="mock-avatar" style="background-color: #3b82f6; width: 40px; height: 40px; border: 2px solid var(--color-black); margin-left: -15px; z-index: 2;"></div>
+                        <div class="mock-avatar" style="background-color: #10b981; width: 40px; height: 40px; border: 2px solid var(--color-black); margin-left: -15px; z-index: 3;">
+                            <span style="display: flex; align-items: center; justify-content: center; height: 100%; font-size: 0.75rem; color: white;">+27</span>
+                        </div>
+                        <button style="margin-left: auto; background-color: white; color: black; font-weight: bold; padding: 0.3rem 0.8rem; border-radius: 9999px; font-size: 0.8rem; border: none; cursor: pointer;">Join as speaker</button>
+                    </div>
+                </div>
+
+                <!-- Today's News Box -->
+                <div class="right-box">
+                    <h2>Today's News</h2>
+                    <!-- News Item 1 -->
+                    <div class="news-item">
+                        <p class="source">CSK Acquires Sanju Samson from Rajasthan Royals in IPL Trade for Jadeja's...</p>
+                        <p class="title">21 hours ago · Sports · 16.8K posts</p>
+                    </div>
+                    <!-- News Item 2 -->
+                    <div class="news-item">
+                        <p class="source">Pre-Attack Video Shows Dr. Umar Nan Nabi Justifying Red Fort Suicide Bombing</p>
+                        <p class="title">20 hours ago · News · 8,517 posts</p>
+                    </div>
+                    <!-- News Item 3 -->
+                    <div class="news-item">
+                        <p class="source">Cloudflare Outage Hits X, ChatGPT, Spotify, World</p>
+                        <p class="title">9 hours ago · News · 7,867 posts</p>
+                    </div>
+                    <div style="margin-top: 1rem; color: var(--color-primary-blue); font-size: 0.9rem; cursor: pointer;">Show more</div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Floating Action Button (FAB) - Hidden on large screens, shown on mobile -->
+    <button id="fab-tweet" onclick="openModal()" class="fab hidden-lg">
+        <!-- Compose Icon -->
+        <svg fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm5 11h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"></path></svg>
+    </button>
+
+
+    <!-- Tweet Composer Modal -->
+    <div id="tweetModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <!-- Modal Header -->
+            <div class="modal-header">
+                <button onclick="closeModal()" class="modal-close-btn">
+                    <!-- Close Icon -->
+                    <svg style="height: 24px; width: 24px;" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+                <h2 style="font-size: 1.125rem; font-weight: bold; margin: 0;">Compose New Tweet</h2>
+                <div style="width: 24px;"></div> <!-- Spacer -->
+            </div>
+
+            <!-- Modal Body (Tweet Area) -->
+            <div class="modal-body">
+                <textarea id="tweetTextarea" 
+                          placeholder="What is happening?!"
+                          maxlength="280"></textarea>
+                <p id="charCount" class="char-count">0/280</p>
+            </div>
+
+            <!-- Prediction Result & Actions -->
+            <div class="modal-footer">
+                
+                <!-- Prediction Result Display -->
+                <div id="predictionResult" class="predict-result" style="display: none;">
+                    <p id="predictionText">
+                        <!-- Prediction content goes here -->
+                    </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="action-row">
+                    <!-- Predict Button (Triggers API call) -->
+                    <button id="predictBtn" onclick="predictTrend()" class="btn btn-predict">
+                        <span id="predictBtnText">Predict Trend</span>
+                        <div id="predictSpinner" class="spinner" style="display: none;"></div>
+                    </button>
+                    
+                    <!-- Tweet Button (Disabled until prediction is made) -->
+                    <button id="tweetBtn" onclick="publishTweet()" disabled class="btn btn-tweet">
+                        Tweet
+                    </button>
+                </div>
+
+                <!-- Error/Status Message -->
+                <div id="statusMessage" class="status-message" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Element References ---
+        const tweetModal = document.getElementById('tweetModal');
+        const tweetTextarea = document.getElementById('tweetTextarea');
+        const charCount = document.getElementById('charCount');
+        const predictBtn = document.getElementById('predictBtn');
+        const tweetBtn = document.getElementById('tweetBtn');
+        const predictBtnText = document.getElementById('predictBtnText');
+        const predictSpinner = document.getElementById('predictSpinner');
+        const predictionResult = document.getElementById('predictionResult');
+        const predictionText = document.getElementById('predictionText');
+        const statusMessage = document.getElementById('statusMessage');
+        const tweetFeedContainer = document.getElementById('tweet-feed-container');
+        const fab = document.getElementById('fab-tweet');
+
+        // --- Event Listener for Character Count and State Reset ---
+        tweetTextarea.addEventListener('input', () => {
+            const length = tweetTextarea.value.length;
+            charCount.textContent = `${length}/280`;
+            // Reset prediction state if text changes after prediction
+            if (!tweetBtn.disabled && tweetBtn.textContent === 'Publish') {
+                resetPredictionState();
+            }
+        });
+
+        // --- Modal Control Functions ---
+        function openModal() {
+            tweetModal.style.display = 'flex';
+            tweetTextarea.focus();
+        }
+
+        function closeModal() {
+            tweetModal.style.display = 'none';
+            tweetTextarea.value = '';
+            charCount.textContent = '0/280';
+            resetPredictionState();
+            statusMessage.style.display = 'none';
+        }
+
+        // --- State Reset Function ---
+        function resetPredictionState() {
+            predictBtn.disabled = false;
+            predictBtnText.textContent = 'Predict Trend';
+            predictSpinner.style.display = 'none';
+            tweetBtn.disabled = true;
+            tweetBtn.textContent = 'Tweet';
+            predictionResult.style.display = 'none';
+            predictionText.innerHTML = '';
+        }
+
+        // --- Prediction Feature Logic ---
+        async function predictTrend() {
+            const tweetText = tweetTextarea.value.trim();
+            if (tweetText.length === 0) {
+                statusMessage.textContent = 'Please enter tweet content to predict.';
+                statusMessage.style.display = 'block';
+                return;
+            }
+            if (tweetText.indexOf('#') === -1) {
+                statusMessage.textContent = 'Your model requires a hashtag in the tweet to make a prediction.';
+                statusMessage.style.display = 'block';
+                return;
+            }
+
+            // Set Loading State
+            statusMessage.style.display = 'none';
+            predictBtn.disabled = true;
+            predictBtnText.textContent = 'Predicting...';
+            predictSpinner.style.display = 'block';
+            tweetBtn.disabled = true;
+            predictionResult.style.display = 'none';
+
+            try {
+                // Call the FastAPI endpoint
+                const result = await callPredictionApi(tweetText);
+                
+                const probability = (result.probability * 100).toFixed(4);
+                const willTrend = result.will_trend_tomorrow === 1;
+                const trendColor = willTrend ? 'var(--color-trend-high)' : 'var(--color-trend-low)';
+                const message = willTrend 
+                    ? `HIGH potential to trend tomorrow! Probability: ${probability}%`
+                    : `LOW potential to trend tomorrow. Probability: ${probability}%`;
+
+                // Display Result
+                predictionText.style.color = trendColor;
+                predictionText.innerHTML = `**${message}** <br>Hashtag analyzed: #${result.hashtag}`;
+                predictionResult.style.display = 'block';
+
+                // Update Publish State
+                tweetBtn.disabled = false;
+                tweetBtn.textContent = 'Publish';
+
+            } catch (error) {
+                console.error("Prediction API Error:", error);
+                // Use a standard error message or the message detail from FastAPI
+                statusMessage.textContent = `Prediction failed: ${error.message || 'Server error. Check if FastAPI is running at http://127.0.0.1:8000/predict'}`;
+                statusMessage.style.display = 'block';
+                tweetBtn.disabled = true;
+                
+            } finally {
+                // Reset Predict button state
+                predictBtn.disabled = false;
+                predictBtnText.textContent = 'Predict Trend';
+                predictSpinner.style.display = 'none';
+            }
+        }
+
+        // --- Publish Tweet Logic ---
+        function publishTweet() {
+            const tweetText = tweetTextarea.value.trim();
+            if (tweetText.length === 0) return;
+
+            // Get the prediction summary for display
+            const predictionSummary = predictionText.textContent;
+            const trendColor = predictionText.style.color || 'var(--color-primary-blue)';
+
+            // Generate HTML for the new tweet
+            const newTweetHTML = `
+                <div class="tweet-box new-tweet" style="opacity: 0;">
+                    <div class="mock-avatar" style="background-color: #ef4444;"></div>
+                    <div class="tweet-content">
+                        <div class="tweet-header">
+                            <p class="name" style="font-weight: bold;">You</p>
+                            <p class="handle">@me</p>
+                            <p class="handle time">· Just now</p>
+                            <span style="color: ${trendColor}; font-size: 0.75rem; font-weight: normal; margin-left: 0.5rem;">[Trend Prediction: ${predictionSummary.substring(0, predictionSummary.indexOf('P')).trim()}]</span>
+                        </div>
+                        <p class="tweet-text">${tweetText}</p>
+                    </div>
+                </div>
+            `;
+            
+            // Prepend the new tweet to the feed
+            tweetFeedContainer.insertAdjacentHTML('afterbegin', newTweetHTML);
+
+            // Simple animation effect for the new tweet
+            const newTweetElement = tweetFeedContainer.querySelector('.new-tweet');
+            if (newTweetElement) {
+                setTimeout(() => {
+                    newTweetElement.style.opacity = '1';
+                    newTweetElement.style.transition = 'opacity 0.3s ease-in';
+                    newTweetElement.classList.remove('new-tweet'); // Remove temporary class
+                }, 50);
+            }
+
+            closeModal();
+        }
+
+
+        // --- FastAPI Trend Prediction Endpoint Configuration ---
+
+        // This endpoint matches your FastAPI path: @app.post("/predict")
+        const apiUrl = 'http://127.0.0.1:8000/predict'; 
+
+        async function callPredictionApi(tweetText, maxRetries = 3) {
+            // Payload structured for the FastAPI TweetInput model: {"tweet": "..."}
+            const payload = {
+                tweet: tweetText // Changed field name to 'tweet'
+            };
+
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!response.ok) {
+                         if (attempt < maxRetries - 1) {
+                            // Exponential backoff delay (1s, 2s, 4s)
+                            const delay = Math.pow(2, attempt) * 1000;
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            continue; // Retry
+                        }
+                        const errorData = await response.json();
+                        // Use error detail from FastAPI if available, otherwise use status
+                        throw new Error(errorData.detail || `Server responded with status ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    // Expects FastAPI to return: {"hashtag": "...", "probability": 0.0, "will_trend_tomorrow": 0/1}
+                    if (result && typeof result.probability === 'number' && typeof result.will_trend_tomorrow === 'number') {
+                        return result; 
+                    } else {
+                        throw new Error('Invalid or missing prediction data from backend.');
+                    }
+                } catch (error) {
+                    if (attempt === maxRetries - 1) {
+                        throw error; // Throw after final attempt
+                    }
+                    // Continue to next iteration for retry logic
+                }
+            }
+        }
+
+        // Apply responsive classes on initial load
+        function checkLayout() {
+            const width = window.innerWidth;
+            const sidebarLeft = document.querySelector('.sidebar-left');
+            const sidebarRight = document.querySelector('.sidebar-right');
+
+            // lg: show left sidebar (1024px)
+            if (width >= 1024) {
+                sidebarLeft.style.display = 'flex';
+                sidebarLeft.classList.remove('hidden-lg');
+                fab.style.display = 'none';
+            } else {
+                sidebarLeft.style.display = 'none';
+                sidebarLeft.classList.add('hidden-lg');
+                fab.style.display = 'block';
+            }
+
+            // xl: show right sidebar (1280px)
+            if (width >= 1280) {
+                sidebarRight.style.display = 'block';
+                sidebarRight.classList.remove('hidden-xl');
+            } else {
+                sidebarRight.style.display = 'none';
+                sidebarRight.classList.add('hidden-xl');
+            }
+        }
+
+        // Initial check and event listener for resize
+        window.addEventListener('resize', checkLayout);
+        window.onload = checkLayout;
+    </script>
+</body>
+</html>
