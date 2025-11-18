@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pandas
+numpy
+xgboost
+joblib
+python-dotenv
+transformers
+torch
+supabase-py

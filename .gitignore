@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual envs
+venv/
+scraper_env/
+
+# VSCode
+.vscode/
+
+# Data (keep local, or only a reduced version)
+cleaned.csv
+bert_embeddings*.csv
+*.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
