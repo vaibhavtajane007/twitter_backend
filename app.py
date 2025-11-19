@@ -52,7 +52,6 @@ class TweetInput(BaseModel):
 # Prediction Endpoint
 # -----------------------------
 @app.post("/predict")
-@app.post("/predict")
 async def predict(data: dict):
 
     try:
