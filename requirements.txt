@@ -11,4 +11,3 @@ beautifulsoup4
 supabase
 textblob
 xgboost==2.0.3
-playwright 
