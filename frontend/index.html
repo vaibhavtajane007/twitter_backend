@@ -906,6 +906,9 @@
             }
         });
 
+        // Keep the most recent prediction result to reuse when publishing
+        let lastPrediction = null;
+
         // --- Modal Control Functions ---
         function openModal() {
             tweetModal.style.display = 'flex';
@@ -957,16 +960,44 @@
                 // Call the FastAPI endpoint
                 const result = await callPredictionApi(tweetText);
                 
+                // Save full prediction for reuse
+                lastPrediction = result;
+
                 const probability = (result.probability * 100).toFixed(4);
                 const willTrend = result.will_trend_tomorrow === 1;
                 const trendColor = willTrend ? 'var(--color-trend-high)' : 'var(--color-trend-low)';
-                const message = willTrend 
-                    ? `HIGH potential to trend tomorrow! Probability: ${probability}%`
-                    : `LOW potential to trend tomorrow. Probability: ${probability}%`;
 
-                // Display Result
+                // Small helper to format adjustments and feature preview
+                function renderAdjustments(adj) {
+                    if (!adj || !Array.isArray(adj) || adj.length === 0) return '<em>No adjustments</em>';
+                    return '<ul style="margin:0.25rem 0 0.25rem 1rem;padding:0;">' + adj.map(a => `<li style="font-size:0.9rem;color:var(--color-text-secondary);">${a.action}: ${a.from ? a.from.toFixed(4) : ''} → ${a.to ? a.to.toFixed(4) : ''}</li>`).join('') + '</ul>';
+                }
+
+                function renderFeaturePreview(features) {
+                    if (!features) return '';
+                    const keep = ['global_popularity_pct','global_total_volume','total_volume','appearances','days_since_last_trend','recent_streak','trend_freq_7d','momentum_score'];
+                    const parts = [];
+                    for (const k of keep) {
+                        if (k in features) parts.push(`<strong>${k}</strong>: ${Number(features[k]).toLocaleString()}`);
+                    }
+                    if (parts.length === 0) return '';
+                    return '<div style="margin-top:0.5rem;color:var(--color-text-secondary);font-size:0.9rem;">' + parts.join(' · ') + '</div>';
+                }
+
+                // Build display HTML
+                const title = willTrend ? `HIGH potential to trend — ${probability}%` : `LOW potential to trend — ${probability}%`;
+                const adjustmentsHtml = renderAdjustments(result.adjustments);
+                const featuresHtml = renderFeaturePreview(result.features_used || result.features);
+
                 predictionText.style.color = trendColor;
-                predictionText.innerHTML = `**${message}** <br>Hashtag analyzed: #${result.hashtag}`;
+                predictionText.innerHTML = `
+                    <div style="font-weight:700;">${title}</div>
+                    <div style="color:var(--color-text-secondary);margin-top:0.25rem;">Hashtag analyzed: <strong>#${result.hashtag}</strong></div>
+                    <div style="margin-top:0.5rem;font-size:0.9rem;color:var(--color-text-secondary);">Threshold used: <strong>${result.threshold_used ?? result.threshold ?? 'n/a'}</strong></div>
+                    <div style="margin-top:0.5rem;">Adjustments: ${adjustmentsHtml}</div>
+                    ${featuresHtml}
+                `;
+
                 predictionResult.style.display = 'block';
 
                 // Update Publish State
@@ -992,10 +1023,9 @@
         function publishTweet() {
             const tweetText = tweetTextarea.value.trim();
             if (tweetText.length === 0) return;
-
-            // Get the prediction summary for display
-            const predictionSummary = predictionText.textContent;
-            const trendColor = predictionText.style.color || 'var(--color-primary-blue)';
+            // Use the last prediction (if available) to annotate the published tweet
+            const trendColor = (lastPrediction && lastPrediction.will_trend_tomorrow === 1) ? 'var(--color-trend-high)' : 'var(--color-trend-low)';
+            const trendLabel = lastPrediction ? `${(lastPrediction.probability*100).toFixed(2)}% #${lastPrediction.hashtag}` : 'No prediction';
 
             // Generate HTML for the new tweet
             const newTweetHTML = `
@@ -1006,7 +1036,7 @@
                             <p class="name" style="font-weight: bold;">You</p>
                             <p class="handle">@me</p>
                             <p class="handle time">· Just now</p>
-                            <span style="color: ${trendColor}; font-size: 0.75rem; font-weight: normal; margin-left: 0.5rem;">[Trend Prediction: ${predictionSummary.substring(0, predictionSummary.indexOf('P')).trim()}]</span>
+                            <span style="color: ${trendColor}; font-size: 0.75rem; font-weight: normal; margin-left: 0.5rem;">[Prediction: ${trendLabel}]</span>
                         </div>
                         <p class="tweet-text">${tweetText}</p>
                     </div>

@@ -5,6 +5,9 @@ import joblib
 import os
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
+from sklearn.preprocessing import StandardScaler
+from sklearn.calibration import CalibratedClassifierCV
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
 
 EMBED_PATH = "bert_embeddings.csv"
 MODEL_DIR = "model"
@@ -60,6 +63,11 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
+# further split train into train/val for calibration & threshold tuning
+X_train_sub, X_val, y_train_sub, y_val = train_test_split(
+    X_train, y_train, test_size=0.15, random_state=42, stratify=y_train
+)
+
 model = XGBClassifier(
     n_estimators=400,
     learning_rate=0.05,
@@ -68,16 +76,56 @@ model = XGBClassifier(
     colsample_bytree=0.8,
     objective="binary:logistic",
     eval_metric="logloss",
-    scale_pos_weight=(len(y_train) / y_train.sum()) if y_train.sum() > 0 else 1,
+    # set scale_pos_weight = (num_negative / num_positive)
+    scale_pos_weight=( (len(y_train_sub) - y_train_sub.sum()) / y_train_sub.sum() ) if y_train_sub.sum() > 0 else 1,
 )
 
 print("\n🔹 Training model...")
-model.fit(X_train, y_train)
-print("✅ Training complete.")
+model.fit(X_train_sub, y_train_sub)
+print("✅ Base model training complete.")
 
-acc = model.score(X_test, y_test)
-print(f"\n📊 Model Accuracy: {acc:.4f}")
+# Fit a scaler on training data and save it for the app
+scaler = StandardScaler()
+scaler.fit(X_train_sub)
 
-joblib.dump(model, os.path.join(MODEL_DIR, "final_twitter_model.pkl"))
-print("\n💾 Model saved to model/final_twitter_model.pkl")
+# Calibrate probabilities using a held-out validation set
+print("\n🔹 Calibrating probabilities (sigmoid)...")
+calibrator = CalibratedClassifierCV(estimator=model, method="sigmoid", cv="prefit")
+calibrator.fit(scaler.transform(X_val), y_val)
+print("✅ Calibration complete.")
+
+X_test_scaled = scaler.transform(X_test)
+probs = calibrator.predict_proba(X_test_scaled)[:, 1]
+preds = (probs > 0.5).astype(int)
+
+acc = accuracy_score(y_test, preds)
+prec = precision_score(y_test, preds, zero_division=0)
+rec = recall_score(y_test, preds, zero_division=0)
+f1 = f1_score(y_test, preds, zero_division=0)
+auc = roc_auc_score(y_test, probs)
+
+print(f"\n📊 Model on test set — Accuracy: {acc:.4f}, Precision: {prec:.4f}, Recall: {rec:.4f}, F1: {f1:.4f}, AUC: {auc:.4f}")
+
+# Save calibrated model and scaler
+joblib.dump(calibrator, os.path.join(MODEL_DIR, "final_twitter_model_calibrated.pkl"))
+joblib.dump(scaler, os.path.join(MODEL_DIR, "scaler.pkl"))
+print("\n💾 Calibrated model saved to model/final_twitter_model_calibrated.pkl")
+print("💾 Scaler saved to model/scaler.pkl")
+
+# Find best probability threshold on validation set (maximize F1)
+val_probs = calibrator.predict_proba(scaler.transform(X_val))[:, 1]
+best_thr = 0.5
+best_f1 = 0.0
+for thr in np.linspace(0.05, 0.95, 91):
+    thr_pred = (val_probs > thr).astype(int)
+    f1s = f1_score(y_val, thr_pred, zero_division=0)
+    if f1s > best_f1:
+        best_f1 = f1s
+        best_thr = thr
+
+with open(os.path.join(MODEL_DIR, "threshold.json"), "w") as f:
+    json.dump({"threshold": float(best_thr), "best_val_f1": float(best_f1)}, f)
+print(f"💾 Saved threshold {best_thr:.3f} (val F1={best_f1:.4f}) to model/threshold.json")
+
+print("\n✅ Done.")
 print("✅ Done.")
