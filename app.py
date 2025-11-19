@@ -52,7 +52,7 @@ class TweetInput(BaseModel):
 @app.post("/predict")
 async def predict(data: dict):
     try:
-        features = extract_features(data["trend_name"])   # your function
+        features = compute_text_features(data["trend_name"])   # your function
         prediction = model.predict([features])[0]
         
         return {"prediction": int(prediction)}  # ALWAYS JSON
