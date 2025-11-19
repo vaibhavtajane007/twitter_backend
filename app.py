@@ -9,6 +9,8 @@ import os
 from textblob import TextBlob
 from datetime import datetime
 from dotenv import load_dotenv
+from feature_engineering import extract_features
+
 
 load_dotenv()
 
@@ -50,13 +52,18 @@ class TweetInput(BaseModel):
 # Prediction Endpoint
 # -----------------------------
 @app.post("/predict")
+@app.post("/predict")
 async def predict(data: dict):
+
     try:
-        features = compute_text_features(data["trend_name"])   # your function
-        prediction = model.predict([features])[0]
-        
-        return {"prediction": int(prediction)}  # ALWAYS JSON
+        tag = data["trend_name"]
+
+        feature_vector = extract_features(tag, model_columns)
+        prediction = int(model.predict([feature_vector])[0])
+
+        return {"prediction": prediction}
 
     except Exception as e:
         print("Prediction error:", str(e))
         return {"error": str(e)}
+
