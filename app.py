@@ -50,27 +50,13 @@ class TweetInput(BaseModel):
 # Prediction Endpoint
 # -----------------------------
 @app.post("/predict")
-def predict_trend(data: TweetInput):
-    hashtags = re.findall(r"#([\w\d_]+)", data.tweet)
-    if not hashtags:
-        raise HTTPException(400, "No hashtags found")
+async def predict(data: dict):
+    try:
+        features = extract_features(data["trend_name"])   # your function
+        prediction = model.predict([features])[0]
+        
+        return {"prediction": int(prediction)}  # ALWAYS JSON
 
-    tag = hashtags[0]
-    feats = compute_text_features(tag)
-
-    # Build input row
-    row = []
-    for col in model_columns:
-        val = feats.get(col, 0.0)
-        row.append(val)
-
-    X = pd.DataFrame([row], columns=model_columns)
-
-    proba = float(model.predict_proba(X)[0][1])
-    label = int(proba >= 0.5)
-
-    return {
-        "hashtag": tag,
-        "probability": proba,
-        "will_trend_tomorrow": label
-    }
+    except Exception as e:
+        print("Prediction error:", str(e))
+        return {"error": str(e)}
