@@ -7,12 +7,18 @@ import pandas as pd
 from feature_engineering import extract_features
 from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI()
+# -------------------------------------------------
+# CREATE APP (ONLY 1 TIME!)
+# -------------------------------------------------
+app = FastAPI(title="Twitter Trend Predictor")
 
-# Allow frontend domain
+# -------------------------------------------------
+# ENABLE CORS
+# -------------------------------------------------
 origins = [
     "https://twitterfronten.netlify.app",
-    "http://localhost:5173",   # for local dev
+    "http://localhost:5173",
+    "*",   # OPTIONAL: allow all origins during testing
 ]
 
 app.add_middleware(
@@ -23,19 +29,26 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# -------------------------------------------------
+# LOAD MODEL
+# -------------------------------------------------
 MODEL_PATH = "model/final_twitter_model.pkl"
 COLS_PATH = "model/model_columns.json"
 
-app = FastAPI(title="Twitter Trend Predictor")
-
-# Load model + columns
 model = joblib.load(MODEL_PATH)
+
 with open(COLS_PATH, "r") as f:
     model_columns = json.load(f)
 
+# -------------------------------------------------
+# INPUT SCHEMA
+# -------------------------------------------------
 class Input(BaseModel):
     trend_name: str
 
+# -------------------------------------------------
+# PREDICTION ENDPOINT
+# -------------------------------------------------
 @app.post("/predict")
 def predict(payload: Input):
     try:
@@ -54,4 +67,4 @@ def predict(payload: Input):
         }
 
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
