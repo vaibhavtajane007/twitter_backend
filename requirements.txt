@@ -4,11 +4,8 @@ pydantic
 pandas
 numpy
 joblib
-torch
-transformers
-supabase
-python-dotenv
 scikit-learn
+python-dotenv
 requests
 beautifulsoup4
-playwright
+supabase
