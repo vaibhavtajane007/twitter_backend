@@ -91,7 +91,7 @@ def predict(payload: Input):
         if any(k.lower() in tag.lower() for k in ALWAYS_TREND):
             return {
                 "trend_name": tag,
-                "probability": 1.0,
+                "probability": 0.48,
                 "will_trend_tomorrow": 1,
                 "rule_based": True,
                 "reason": "High-confidence keyword match"
