@@ -45,13 +45,23 @@ def extract_first_hashtag(text):
 
 
 # ---------------- Prediction Route -----------
+# ---------------- Prediction Route -----------
 @app.post("/predict")
 def predict(data: TweetInput):
     DEMO_TRENDING = {"IPL2025", "Budget2025","Ranveer","ranveer","dhurandar","ambani","Cloudflare","modi"}
     DEMO_TRENDING1 = {"INDvsAUS", "IPL2025", "jadeja","csk","retain","auction","ashes","smith","samson"}
+
+    # ⭐ FIX: Define 'tag' first!
+    tag = extract_first_hashtag(data.tweet)
     
-    
-    if tag in DEMO_TRENDING:
+    if tag is None:
+        raise HTTPException(
+            status_code=400,
+            detail="❌ No hashtag found. Please include at least one #hashtag."
+        )
+
+    # Now we can safely use 'tag' for the demo overrides
+    if tag in DEMO_TRENDING: 
         return {
             "trend_name": tag,
             "probability": 0.92,
@@ -68,16 +78,9 @@ def predict(data: TweetInput):
             "adjustments": "Sports : Cricket"
         }
 
-    tag = extract_first_hashtag(data.tweet)
-
-    if tag is None:
-        raise HTTPException(
-            status_code=400,
-            detail="❌ No hashtag found. Please include at least one #hashtag."
-        )
-
     try:
         # build features
+        # ... (rest of the logic, which is fine)
         row = extract_features(tag, model_columns)
         df = pd.DataFrame([row], columns=model_columns).fillna(0)
 
