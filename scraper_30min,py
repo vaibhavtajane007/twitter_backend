@@ -1,0 +1,172 @@
+# scraper_30min.py
+import asyncio
+import os
+import re
+from datetime import datetime, timedelta
+from typing import List, Dict, Optional
+
+from bs4 import BeautifulSoup
+from playwright.async_api import async_playwright
+from supabase import create_client, Client
+
+# Config: prefer env vars
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://fymvqsdxdpzsqimflrmd.supabase.co")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "eyJhbGciOi...")  # replace with env in prod
+
+# create supabase client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+async def fetch_html(url: str, wait_ms: int = 8000) -> str:
+    """Fetch page HTML via Playwright headless chromium."""
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox"])
+        page = await browser.new_page()
+        try:
+            await page.goto(url, timeout=60000)
+            await page.wait_for_timeout(wait_ms)
+            html = await page.content()
+        finally:
+            await browser.close()
+        return html
+
+
+def normalize_time_str(time_str: str) -> Optional[str]:
+    """
+    Extract hh:mm (first occurrence) from time strings like:
+      "00:00", "00:00 - 00:30", "12:30", "12:30 PM", "00:00 (IST)" etc.
+    Returns "HH:MM" or None.
+    """
+    if not time_str:
+        return None
+    # common patterns
+    m = re.search(r"([01]?\d|2[0-3]):([0-5]\d)", time_str)
+    if m:
+        return f"{int(m.group(1)):02d}:{m.group(2)}"
+    # possible other formats (like '12pm', '12 AM')
+    m2 = re.search(r"(\d{1,2})\s*(am|pm)", time_str, flags=re.I)
+    if m2:
+        hour = int(m2.group(1)) % 12
+        if m2.group(2).lower() == "pm":
+            hour = (hour % 12) + 12
+        return f"{hour:02d}:00"
+    return None
+
+
+def parse_half_hourly(soup: BeautifulSoup, trend_date: str) -> List[Dict]:
+    """
+    Parse page html for half-hour blocks. Return list of dict rows.
+    Fields: trend_date, trend_time (HH:MM), trend_datetime (ISO), trend_rank, trend_name, volume
+    """
+    results = []
+    trend_blocks = soup.find_all("div", class_="tek_tablo")
+    for block in trend_blocks:
+        # time header inside block
+        time_div = block.find("div", class_="trend_baslik611")
+        time_str_raw = time_div.text.strip() if time_div else ""
+        time_str = normalize_time_str(time_str_raw) or "00:00"
+
+        # try to parse rows: they often come in rank row then volume row
+        rows = block.find_all("tr")
+        i = 0
+        while i < len(rows):
+            rank_td = rows[i].find("td", class_="sira611")
+            trend_td = rows[i].find("td", class_="trend611")
+            rank = None
+            trend = None
+            if rank_td:
+                try:
+                    rank = int(rank_td.text.strip())
+                except Exception:
+                    rank = None
+            if trend_td:
+                trend = trend_td.text.strip()
+
+            # next row may contain volume (class trend611_s)
+            volume = None
+            if i + 1 < len(rows):
+                vol_td = rows[i + 1].find("td", class_="trend611_s")
+                if vol_td:
+                    vol_text = vol_td.text.strip()
+                    m = re.search(r"([\d.,]+)", vol_text.replace(" ", ""))
+                    if m:
+                        # remove separators: both . and , used in different styles
+                        v = m.group(1)
+                        v = v.replace(".", "").replace(",", "")
+                        try:
+                            volume = float(v)
+                        except Exception:
+                            volume = None
+
+            if trend:
+                # build datetime: trend_date is YYYY-MM-DD, time_str is HH:MM
+                try:
+                    dt = datetime.strptime(f"{trend_date} {time_str}", "%Y-%m-%d %H:%M")
+                except Exception:
+                    # fallback to date midnight
+                    dt = datetime.strptime(trend_date, "%Y-%m-%d")
+
+                results.append({
+                    "trend_date": trend_date,
+                    "trend_time": time_str,
+                    "trend_datetime": dt.isoformat(),
+                    "trend_rank": rank,
+                    "trend_name": trend,
+                    "volume": volume
+                })
+            i += 2
+    return results
+
+
+async def run_once_for_date(date_obj: datetime):
+    date_str = date_obj.strftime("%Y-%m-%d")
+    url = f"https://archive.twitter-trending.com/india/{date_obj.strftime('%d-%m-%Y')}"
+    print(f"[{datetime.utcnow().isoformat()}] Fetching {url}")
+    try:
+        html = await fetch_html(url)
+        soup = BeautifulSoup(html, "html.parser")
+        rows = parse_half_hourly(soup, date_str)
+        if not rows:
+            print("No rows parsed for", date_str)
+            return
+
+        # Upsert rows into supabase; to avoid duplicates we'll attempt an upsert by unique key.
+        # NOTE: to upsert you need a unique constraint on (trend_date, trend_time, trend_name)
+        # If not present, we'll delete duplicates for same date/time/name before insert.
+        for chunk_start in range(0, len(rows), 100):
+            chunk = rows[chunk_start:chunk_start + 100]
+            # optional: delete duplicates for these date strings (cheap)
+            try:
+                # delete by date to avoid duplicates for that date (careful in prod)
+                supabase.table("half_hourly_trends").delete().eq("trend_date", date_str).execute()
+            except Exception:
+                # ignore
+                pass
+            try:
+                supabase.table("half_hourly_trends").insert(chunk).execute()
+            except Exception as e:
+                print("Insert chunk failed:", e)
+        print(f"Inserted {len(rows)} rows for {date_str}")
+    except Exception as e:
+        print("Error in run_once_for_date:", e)
+
+
+async def loop_forever(interval_minutes: int = 30):
+    """
+    Run for TODAY every interval_minutes. Also can be pointed for other days (historical runs).
+    """
+    while True:
+        now = datetime.utcnow()
+        # if you want local IST, adjust timezone accordingly; using UTC simplifies DB queries
+        await run_once_for_date(now)
+        # sleep
+        await asyncio.sleep(interval_minutes * 60)
+
+
+if __name__ == "__main__":
+    # recommended: set SUPABASE_URL and SUPABASE_KEY in environment
+    print("Starting 30-min scraper (CTRL+C to stop).")
+    try:
+        asyncio.run(loop_forever(interval_minutes=30))
+    except KeyboardInterrupt:
+        print("Stopped by user.")
