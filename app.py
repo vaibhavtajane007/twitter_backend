@@ -77,27 +77,27 @@ def extract_hashtags(text: str):
 # -----------------------------------
 @app.post("/predict")
 def predict(payload: Input):
-
-    if not payload.trend_name:
-        raise HTTPException(status_code=400, detail="trend_name cannot be empty")
-
-    tag = payload.trend_name.replace("#", "")  # clean
-
-    # ------------------------------
-    # 🔥 1. STATIC TREND RULE
-    # ------------------------------
-    if tag in STATIC_TRENDING:
-        return {
-            "trend_name": tag,
-            "probability": 1.0,
-            "will_trend_tomorrow": 1,
-            "reason": "Detected in top real-time trends"
-        }
-
-    # ------------------------------
-    # 2. ML MODEL FALLBACK
-    # ------------------------------
     try:
+        tag = payload.trend_name.replace("#", "")
+
+        # --- 1) STATIC TREND BOOST ---
+        ALWAYS_TREND = [
+            "INDvsPAK", "Budget2025", "LokSabha", 
+            "BigBossFinale", "Cricket", "BreakingNews",
+            "ElectionResults", "WorldCup", "ViralVideo",
+        ]
+
+        # If tag EXACT OR PARTIAL match — return 100% trending
+        if any(k.lower() in tag.lower() for k in ALWAYS_TREND):
+            return {
+                "trend_name": tag,
+                "probability": 1.0,
+                "will_trend_tomorrow": 1,
+                "rule_based": True,
+                "reason": "High-confidence keyword match"
+            }
+
+        # --- 2) ML MODEL PREDICTION ---
         row = extract_features(tag, model_columns)
         df = pd.DataFrame([row], columns=model_columns)
 
@@ -108,8 +108,13 @@ def predict(payload: Input):
             "trend_name": tag,
             "probability": prob,
             "will_trend_tomorrow": label,
-            "reason": "Predicted by ML model"
+            "rule_based": False,
+            "reason": "ML model prediction"
         }
+
+    except Exception as e:
+        return {"error": str(e)}
+
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {e}")
