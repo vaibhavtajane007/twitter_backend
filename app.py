@@ -5,6 +5,23 @@ import joblib
 import json
 import pandas as pd
 from feature_engineering import extract_features
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+# Allow frontend domain
+origins = [
+    "https://twitterfronten.netlify.app",
+    "http://localhost:5173",   # for local dev
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 MODEL_PATH = "model/final_twitter_model.pkl"
 COLS_PATH = "model/model_columns.json"
