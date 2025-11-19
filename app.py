@@ -57,7 +57,7 @@ TREND_RULES = [
             "virat", "rohit", "jadeja", "suryakumar", "cricket",
             "auction", "wt20", "worldcup", "odi"
         ],
-        "prob_pct": 87,
+        "prob_pct": 47,
         "reason": "Huge hype due to ongoing cricket buzz in India"
     },
     {
@@ -66,7 +66,7 @@ TREND_RULES = [
             "modi", "bjp", "congress", "election", "loksabha",
             "budget", "cm", "govt", "parliament"
         ],
-        "prob_pct": 79,
+        "prob_pct": 39,
         "reason": "High political discussion volume nationwide"
     },
     {
@@ -75,7 +75,7 @@ TREND_RULES = [
             "trailer", "boxoffice", "bollywood", "movie",
             "teaser", "release", "shooting"
         ],
-        "prob_pct": 72,
+        "prob_pct": 22,
         "reason": "High entertainment buzz across India"
     },
     {
@@ -84,7 +84,7 @@ TREND_RULES = [
             "ai", "openai", "cloudflare", "tcs",
             "infosys", "meta", "google", "tech"
         ],
-        "prob_pct": 64,
+        "prob_pct": 34,
         "reason": "Tech conversations trending strongly this week"
     },
     {
@@ -93,7 +93,7 @@ TREND_RULES = [
             "breakingnews", "viral", "viralvideo",
             "trendalert", "trendingnow"
         ],
-        "prob_pct": 58,
+        "prob_pct": 12,
         "reason": "General virality indicators"
     },
     {
@@ -103,7 +103,7 @@ TREND_RULES = [
             "india lost", "south africa", "15 years",
             "ashesh", "india news", "updates"
         ],
-        "prob_pct": 81,
+        "prob_pct": 51,
         "reason": "Recent India headlines with heavy social media buzz"
     }
 ]
